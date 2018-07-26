@@ -1,6 +1,12 @@
 import csv
 import re
 import os
+import argparse
+
+#COSMIC_csv_reader.py
+#Version 1.0
+#Author: James Gatter, jggatter [at] mit.edu
+#July 26th, 2018
 
 Names_positions = {} # Sample_name : Positions_substitutions{}
 # { Sample Name : {Position : {Substitution : Count}} }
@@ -25,6 +31,7 @@ def write_dictionary(sample_name, chromosome, position, substitution, Names_posi
 	return Names_positions;
 
 SAMPLE_NAME=4
+PRIMARY_SITE=7
 PRIMARY_HISTOLOGY=11
 MUTATION_CDS=17
 GRCH=22
@@ -32,14 +39,24 @@ MUTATION_GENOME_POSITION=23
 MUTATION_STRAND=24
 MUTATION_SOMATIC_STATUS=29
 
-with open("V85_38_MUTANT.csv") as csvfile:
-#with open("mutation_csv_reader_test.csv") as csvfile:
+parser = argparse.ArgumentParser(description="""Reads the downloaded .csv file from COSMIC and filters by certain parameters.
+											 In a specified directory, it creates and outputs .csv files for each sample group.
+											 These files are formatted for use by context_finder.py.""")
+parser.add_argument("-i", "--input",
+					default="V85_38_MUTANT.csv",
+					help="The input COSMIC .csv file")
+parser.add_argument("-o", "--output",
+					default="./samples/",
+					help="Directory for storing outputted .csv files")
+args = parser.parse_args()
+
+with open(args.input) as csvfile:
 	
 	reader = csv.reader(csvfile)
 	for row in reader:
 		
-		#print("DEBUG: " + row[SAMPLE_NAME] + row[PRIMARY_HISTOLOGY] + row[MUTATION_CDS] + row[GRCH] + row[MUTATION_SOMATIC_STATUS])
-		if row[0] == "GENE_NAME": continue
+		if row[0] == "GENE_NAME": continue #Skips the header of the .csv 
+		if row[PRIMARY_SITE] != "skin": continue
 		if row[PRIMARY_HISTOLOGY] != "malignant_melanoma": continue
 		if "del" in row[MUTATION_CDS] or "ins" in row[MUTATION_CDS]: continue
 		if row[GRCH] == "null" or int(row[GRCH]) != 38: continue
@@ -79,7 +96,7 @@ with open("V85_38_MUTANT.csv") as csvfile:
 					Names_positions = write_dictionary(sample_name=row[SAMPLE_NAME], chromosome=positions[0], position=positions[1], substitution=write_sub1)
 					break
 
-dir_name = "./samples/"
+dir_name = args.output
 if not os.path.exists(dir_name): os.makedirs(dir_name)
 for sample_name in Names_positions:
 
@@ -92,11 +109,8 @@ for sample_name in Names_positions:
 	output.write("Position,Sample Name,Strand:Substitution,Count\n")
 	
 	for position in Names_positions.get(sample_name):
-		#print(" DEBUG: " + position)
 		for substitution in Names_positions.get(sample_name).get(position):
-			#print(" DEBUG: " + substitution)
 			count = Names_positions.get(sample_name).get(position).get(substitution)
-			#print(" DEBUG: Writing " + str(position) + "," + str(sample_name) + "," + str(substitution) + "," + str(count))
 			output.write(str(position) + "," + str(sample_name) + "," + str(substitution) + "," + str(count) + "\n")
 
 print("Number of different samples: " + str(len(Names_positions)))
